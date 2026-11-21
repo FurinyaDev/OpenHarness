@@ -9,6 +9,57 @@ and project CI remain their respective sources of truth.
 for actual current lifecycle and guarantees; a saved report cannot activate a repository.
 The [frozen contract](docs/contracts/repository-agent-harness-v1.0.md) remains normative.
 
+## Minimal Core for a new project
+
+From the project root, use a separate OpenHarness checkout. Set
+`OPENHARNESS_REVISION` to the full commit SHA you reviewed and use that same
+revision for the guide and examples. These assets are available from the source
+revision that introduces them. The published v0.3.0 predates them.
+
+```sh
+python - /path/to/OpenHarness "$OPENHARNESS_REVISION" <<'PYTHON'
+import re
+import subprocess
+import sys
+from pathlib import Path
+
+source, revision = sys.argv[1:]
+if not re.fullmatch(r"[0-9a-f]{40}", revision):
+    raise SystemExit("OPENHARNESS_REVISION must be a full commit SHA")
+commit = subprocess.check_output(
+    ["git", "-C", source, "rev-parse", "--verify", f"{revision}^{{commit}}"]
+).strip()
+if commit.decode("ascii") != revision:
+    raise SystemExit("OPENHARNESS_REVISION must name the commit itself")
+template = subprocess.check_output(
+    ["git", "-C", source, "show", f"{revision}:docs/agents-core.md"]
+)
+with Path("AGENTS.md").open("xb") as entry:
+    entry.write(template.replace(b"OPENHARNESS_REVISION", revision.encode("ascii")))
+PYTHON
+```
+
+The recipe creates one file and reports a collision if the entry already exists.
+You can also copy the [entry template](docs/agents-core.md) by hand and replace
+`OPENHARNESS_REVISION` in its guide link. Reading the entry and guide requires
+only document access.
+
+For an existing project, add the pinned link and necessary guidance to its
+current entry in a normal project PR. To update, compare the old and proposed
+source revisions of the [engineering guide](docs/engineering.md) and the
+templates you use, then edit the link and any adopted excerpts in that PR. Review
+the diff to preserve project-specific instructions, commands, config, and CI.
+An existing entry stays project-owned.
+
+Claude Code compatibility follows its
+[project instructions](https://code.claude.com/docs/en/memory#agents-md).
+Where an existing or older Claude entry needs an import, add `@AGENTS.md`
+to the project's `CLAUDE.md` while keeping its existing instructions.
+
+For workspace binding, candidate verification or PR integration, follow the
+[cooperative bootstrap](#default-use-the-existing-project-workflow) or the
+[optional strict bootstrap](#optional-strict-bootstrap) as applicable.
+
 ## Install
 
 Requires Python 3.11+, Git 2.38+ (`merge-tree --write-tree`), and authenticated
