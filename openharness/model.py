@@ -83,12 +83,20 @@ def validate_config(config):
             raise ValueError('Envelope actors and exclusions must be string lists')
     verification = config['verification']
     fields = {'commands', 'material_inputs', 'environment', 'required_check', 'expected_app_id'}
-    if not isinstance(verification, dict) or not fields <= set(verification) or set(verification) - fields - {'controller', 'sandbox_image', 'workflow'}:
+    if not isinstance(verification, dict) or not fields <= set(verification) or set(verification) - fields - {'controller', 'sandbox_image', 'workflow', 'acceptance_paths'}:
         raise ValueError('Invalid verification configuration')
     if not isinstance(verification['commands'], list) or not all(isinstance(c, list) and c and all(isinstance(v, str) and v for v in c) for c in verification['commands']):
         raise ValueError('Verification commands must be nonempty argv lists, never shell text')
     if not isinstance(verification['material_inputs'], list) or not all(isinstance(v, str) for v in verification['material_inputs']):
         raise ValueError('Material inputs must be repository-relative paths')
+    paths = verification.get('acceptance_paths', [])
+    if (not isinstance(paths, list) or not all(
+            isinstance(path, str) and re.fullmatch(r'[^\\:\x00-\x1f\x7f]+', path)
+            and all(part.casefold() not in ('', '.', '..', '.git') for part in path.split('/'))
+            for path in paths) or len(paths) != len(set(paths))):
+        raise ValueError('Acceptance paths must be unique literal repository-relative file paths')
+    if paths and mode(config) != 'strict':
+        raise ValueError('Acceptance path protection requires the strict trusted controller')
     if not isinstance(verification['environment'], dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in verification['environment'].items()):
         raise ValueError('Material environment must be a string mapping')
     if not isinstance(verification['required_check'], str) or not verification['required_check']:

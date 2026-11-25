@@ -322,6 +322,8 @@ class Runtime:
         config = self.repo.config()
         state = self.state()
         instructions = ['AGENTS.md', '.harness/AGENT.md']
+        paths = config['verification'].get('acceptance_paths', [])
+        acceptance = {'declared_acceptance_paths': paths} if paths else {}
         from .updates import installation_observation, RUNTIME_ENTRY
         try:
             identity = installation_observation(self.repo)
@@ -331,7 +333,7 @@ class Runtime:
             pass  # Doctor preserves the exact installation gap below.
         if not full:
             binding = state.get('workspaces', {}).get(str(self.repo.root))
-            return {'mode': mode(config), 'instruction_paths': instructions,
+            return {'mode': mode(config), 'instruction_paths': instructions, **acceptance,
                     'work_authority': config['authorities']['work'], 'target': config['target'],
                     'workspace': binding, 'assessment': 'not-observed',
                     'next': ('Continue project acceptance/CI, then integrate the exact PR' if binding else
@@ -346,7 +348,7 @@ class Runtime:
             work, work_error = [], str(exc)
         return {
             'config': str(self.repo.root / '.harness/config.json'), 'authorities': config['authorities'],
-            'instruction_paths': instructions,
+            'instruction_paths': instructions, **acceptance,
             'work_url': (f'https://github.com/{config["repository"]}/tree/{config["target"]}/' + config['work']['directories'][0]
                          if config['profile'] == 'github-backlog-v1' else f'https://github.com/{config["repository"]}/issues'), 'legal_work': work,
             'work_discovery_error': work_error, 'lifecycle': state['lifecycle'],
