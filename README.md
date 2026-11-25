@@ -205,6 +205,8 @@ PRs require exactly one `Work-Item: #N` line and their Issue-bound Change branch
 Changes to `.github/`, `.harness/` or `AGENTS.md` require a repository-owner Issue
 comment with `OpenHarness-Control-Approval: HEAD_SHA BASE_SHA`. Both old and proposed
 acceptance configurations run when config changes. Control changes use the same gate.
+Strict repositories can also [protect project-designated acceptance files](docs/acceptance-closure.md)
+through that control approval path.
 
 `integrate --pr N` merges the exact clean bound candidate through native enforcement
 and confirms the integrated tree; no administrator bypass is requested. `release`

@@ -217,8 +217,21 @@ def control_change(config, paths):
         p == folder or p.startswith(folder + '/') or folder.startswith(p + '/')
         for p in paths for folder in config['work']['directories'])
     roots = ['.github', '.harness'] + (['openharness', 'tests', 'docs/contracts'] if own_tool else [])
-    return corpus_change or any(p == 'AGENTS.md' or (own_tool and p == 'pyproject.toml')
+    acceptance_paths = set(config['verification'].get('acceptance_paths', []))
+    return corpus_change or any(p in acceptance_paths or p == 'AGENTS.md' or (own_tool and p == 'pyproject.toml')
                or any(p == root or p.startswith(root + '/') for root in roots) for p in paths)
+
+
+def validate_acceptance_paths(repo, revision, config):
+    paths = config['verification'].get('acceptance_paths', [])
+    if not paths:
+        return
+    entries = repo.git_paths('--literal-pathspecs', 'ls-tree', '-r', '-z', revision, '--', *paths)
+    files = {entry.split('\t', 1)[1] for entry in entries
+             if entry.startswith(('100644 blob ', '100755 blob '))}
+    missing = sorted(set(paths) - files)
+    if missing:
+        raise ValueError('Acceptance paths must exist as tracked regular files: ' + json.dumps(missing))
 
 
 def check_candidate(config, baseline, root, event, api=gh_api):
@@ -254,6 +267,7 @@ def check_candidate(config, baseline, root, event, api=gh_api):
         if proposed['repository'] != config['repository'] or proposed['target'] != config['target']:
             raise ValueError('Control upgrade cannot silently move semantic authority')
         configurations.append(proposed)
+    validate_acceptance_paths(repo, context['head'], configurations[-1])
     from .updates import validate_candidate
     validate_candidate(repo, context['base'], api)
     checks = []
